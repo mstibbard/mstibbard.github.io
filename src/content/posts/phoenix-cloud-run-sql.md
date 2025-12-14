@@ -2,7 +2,7 @@
 title: 'Deploy Phoenix to Google Cloud Run and Cloud SQL'
 description: 'Learn how to set up automated deployments and migrations for a Phoenix project onto Google Cloud Run and Cloud SQL.'
 published: 2024-01-26
-draft: true
+draft: false
 tags: ['gcp', 'elixir']
 toc: true
 ---
