@@ -17,6 +17,8 @@ bun install
 bun run dev
 ```
 
+Note: Development will include all published content **and** draft content.
+
 ### Local build and preview
 
 ```shell
