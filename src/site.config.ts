@@ -2,11 +2,11 @@ import type { SiteConfig } from '~/types'
 
 const config: SiteConfig = {
   // Absolute URL to the root of your published site, used for generating links and sitemaps.
-  site: 'https://www.stibbard.io',
+  site: 'https://stibbard.io',
   // The name of your site, used in the title and for SEO.
   title: 'stibbard',
   // The description of your site, used for SEO and RSS feed.
-  description: "Stibbard's blog.",
+  description: "Matthew Stibbard's personal site.",
   // The author of the site, used in the footer, SEO, and RSS feed.
   author: 'Matthew Stibbard',
   // Keywords for SEO, used in the meta tags.
