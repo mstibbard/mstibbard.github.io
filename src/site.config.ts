@@ -6,7 +6,7 @@ const config: SiteConfig = {
   // The name of your site, used in the title and for SEO.
   title: 'stibbard',
   // The description of your site, used for SEO and RSS feed.
-  description: 'Stibbard\'s blog.',
+  description: "Stibbard's blog.",
   // The author of the site, used in the footer, SEO, and RSS feed.
   author: 'Matthew Stibbard',
   // Keywords for SEO, used in the meta tags.
@@ -34,7 +34,7 @@ const config: SiteConfig = {
     {
       name: 'Posts',
       url: '/posts',
-    }
+    },
   ],
   // The theming configuration for the site.
   themes: {
