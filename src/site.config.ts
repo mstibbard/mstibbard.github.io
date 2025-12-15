@@ -161,6 +161,7 @@ const config: SiteConfig = {
   // Make sure to compress the image to a web-friendly size (<100kb)
   // Try using the excellent https://squoosh.app web app for creating small webp files
   characters: {
+    matt: '/avatar_side.webp',
     owl: '/owl.webp',
     unicorn: '/unicorn.webp',
     duck: '/duck.webp',
