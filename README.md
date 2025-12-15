@@ -24,3 +24,10 @@ Note: Development will include all published content **and** draft content.
 ```shell
 bun run build && bun run preview
 ```
+
+## Useful stuff
+
+### Image stuff
+
+- [Squoosh](https://squoosh.app) for image conversion and optimisation
+- [Photopea](https://www.photopea.com) for image editing
