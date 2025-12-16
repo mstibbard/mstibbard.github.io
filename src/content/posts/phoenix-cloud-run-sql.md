@@ -45,7 +45,7 @@ mix phx.gen.live Products Product products name brand
 
 ## 1. Prepare your application
 
-Generate a Dockerfile and other useful release helpers.
+Generate a Dockerfile and other useful release helpers [(docs)](https://hexdocs.pm/phoenix/Mix.Tasks.Phx.Gen.Release.html).
 
 ```sh
 mix phx.gen.release --docker
