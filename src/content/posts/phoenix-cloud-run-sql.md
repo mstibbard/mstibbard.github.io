@@ -9,21 +9,6 @@ toc: true
 
 This post explains how to set up **automated deployments and migrations** for a Phoenix project on Google Cloud's managed services using the [Google Cloud CLI](https://cloud.google.com/sdk/gcloud) (mostly). The Phoenix app will be hosted on Google Cloud Run and the PostgreSQL database will be hosted on Cloud SQL. Deployments will be automatically triggered when changes are pushed to the `main` branch of your git repository (GitHub specifically in this post).
 
-At a high level we will:
-
-1. Prepare your application
-2. Create a GCP project
-3. Enable the services we need
-4. Create an Artifact Registry repository to store our compiled app
-5. Update Service Account permissions
-6. Create a Cloud SQL database instance
-7. Create environment variables in Secrets Manager
-8. Connect a GitHub repository to Cloud Build
-9. Create a Cloud Build trigger
-10. Create a build configuration file
-11. Trigger a deploy to Cloud Run
-12. (OPTIONAL) psql into Cloud SQL
-
 ## Prerequisites
 
 - A Google account
@@ -43,7 +28,7 @@ mix phx.gen.live Products Product products name brand
 # remember to update lib/insight_web/router.ex
 ```
 
-## 1. Prepare your application
+## Prepare your application
 
 Generate a Dockerfile and other useful release helpers [(docs)](https://hexdocs.pm/phoenix/Mix.Tasks.Phx.Gen.Release.html).
 
@@ -83,7 +68,7 @@ config :insight, Insight.Endpoint,
 +  check_origin: ["https://*.run.app"]
 ```
 
-## 2. Create a GCP project
+## Create a GCP project
 
 :::tip
 Use environment variables so that most commands can be copy-pasted.
@@ -132,7 +117,7 @@ gcloud billing projects link $PROJECT_ID \
     --billing-account=[billing_account_id]
 ```
 
-## 3. Enable the services we need
+## Enable GCP APIs
 
 Google Cloud disables all cloud products/services on a new project by default so we will need to enable all the services we will use for this deployment: Artifact Registry, Cloud Build, Cloud SQL, Secret Manager, Cloud Run, and the IAM API.
 
@@ -149,7 +134,7 @@ gcloud services enable \
   iam.googleapis.com
 ```
 
-## 4. Create an Artifact Registry repository to store our compiled app
+## Create an Artifact Registry repo
 
 Create a new repository with an identifier (I generally align this with my elixir app name) and specifying the format and region.
 
@@ -169,7 +154,7 @@ REGISTRY_URL=$(gcloud artifacts repositories describe $APP_NAME \
 echo $REGISTRY_URL
 ```
 
-## 5. Update service account permissions
+## Update service account permissions
 
 Update the service account to have all necessary permissions.
 
@@ -198,7 +183,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --condition None
 ```
 
-## 6. Create a Cloud SQL database instance
+## Create a Cloud SQL instance
 
 Set up the environment variables for the next handful of steps.
 
@@ -252,7 +237,7 @@ CONN_NAME=$(gcloud sql instances describe $INSTANCE \
 echo $CONN_NAME
 ```
 
-## 7. Create environment variables in Secrets Manager
+## Create environment variables in Secrets Manager
 
 Create the following secrets on GCP that our Phoenix app will use:
 
@@ -297,7 +282,7 @@ DB_PASS_PATH=$(gcloud secrets describe DB_PASS --format='value(name)')
 echo $DB_USER_PATH $DB_PASS_PATH
 ```
 
-## 8. Connect a GitHub repository to Cloud Build
+## Connect a GitHub repository to Cloud Build
 
 This step and the next step are easier via [Google Cloud Console > Cloud Build > Repositories](https://console.cloud.google.com/cloud-build/repositories).
 
@@ -307,7 +292,7 @@ It will then take you through authentication with GitHub. You will have an optio
 
 After you have successfully created a connection, click "LINK A REPOSITORY". Select the connection you just created and your Phoenix app repository. Choose generated repository names.
 
-## 9. Create a Cloud Build trigger
+## Create a Cloud Build trigger
 
 Create a trigger via [Google Cloud Console > Cloud Build > Triggers](https://console.cloud.google.com/cloud-build/triggers).
 
@@ -321,7 +306,7 @@ Click "CREATE TRIGGER" and populate with your desired details:
 - Location: Repository
 - Cloud Build configuration file location: `/cloudbuild.yaml`
 
-## 10. Create a build configuration file
+## Create a build config file
 
 In your Phoenix project's root directory run the following command to create a `cloudbuild.yaml` file.
 
@@ -427,7 +412,7 @@ This script creates a `cloudbuild.yaml` [(docs)](https://cloud.google.com/build/
   - Links our Cloud SQL instance
 - Makes use of [substitute variables](https://cloud.google.com/build/docs/configuring-builds/substitute-variable-values) to make it easier to work with. Because we are using a mix of `script:` and `arg:` approaches we need to set the `automapSubstitutions: true` option otherwise our builds will fail
 
-## 11. Trigger a deploy to Cloud Run
+## Trigger a deploy to Cloud Run
 
 Commit the `cloudbuild.yaml` file (or any other change) and push it to your GitHub repository and watch it build. You can manually trigger builds via [Google Cloud Console > Cloud Build > Triggers](https://console.cloud.google.com/cloud-build/triggers).
 
@@ -441,7 +426,7 @@ If at any time you need to retrieve details of this service you can do so with t
 gcloud run services list
 ```
 
-## 12. (OPTIONAL) psql into Cloud SQL
+## (OPTIONAL) psql into Cloud SQL
 
 To remotely connect to the Cloud SQL database you can use Cloud SQL Proxy. This securely connects via API to the database using your Google Cloud CLI credentials.
 
