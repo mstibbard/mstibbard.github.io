@@ -17,12 +17,12 @@ const config: SiteConfig = {
   socialCardAvatarImage: './src/content/avatar.jpg',
   // Font imported from @fontsource or elsewhere, used for regular text.
   // To change this see src/styles/global.css and import a different font.
-  font: 'Roboto Variable',
+  font: 'Atkinson Hyperlegible Next',
   // Optional: Font size for regular text (default: 1rem)
-  fontSize: '1.125rem',
+  fontSize: '1.15rem',
   // Optional: Font used specifically for code blocks and inline code.
   // If not specified, falls back to the main font.
-  codeFont: 'Atkinson Hyperlegible Mono Variable',
+  codeFont: 'Atkinson Hyperlegible Mono',
   // Optional: Font size for code blocks (default: 0.875rem)
   codeFontSize: '1rem',
   // For pagination, the number of posts to display per page.
