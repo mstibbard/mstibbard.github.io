@@ -15,9 +15,16 @@ const config: SiteConfig = {
   // Needs to be a square JPEG file due to limitations of the social card generator.
   // Try https://squoosh.app/ to easily convert images to JPEG.
   socialCardAvatarImage: './src/content/avatar.jpg',
-  // Font imported from @fontsource or elsewhere, used for the entire site.
+  // Font imported from @fontsource or elsewhere, used for regular text.
   // To change this see src/styles/global.css and import a different font.
-  font: 'Atkinson Hyperlegible Mono Variable',
+  font: 'Roboto Variable',
+  // Optional: Font size for regular text (default: 1rem)
+  fontSize: '1.125rem',
+  // Optional: Font used specifically for code blocks and inline code.
+  // If not specified, falls back to the main font.
+  codeFont: 'Atkinson Hyperlegible Mono Variable',
+  // Optional: Font size for code blocks (default: 0.875rem)
+  codeFontSize: '1rem',
   // For pagination, the number of posts to display per page.
   // The homepage will display half this number in the "Latest Posts" section.
   pageSize: 6,

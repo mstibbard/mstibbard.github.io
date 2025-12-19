@@ -32,6 +32,9 @@ const pageKeywords = [
 ].join(', ')
 const baseCssVars: { [key: string]: string } = {
   'theme-font': siteConfig.font,
+  ...(siteConfig.fontSize && { 'theme-font-size': siteConfig.fontSize }),
+  ...(siteConfig.codeFont && { 'theme-code-font': siteConfig.codeFont }),
+  ...(siteConfig.codeFontSize && { 'theme-code-font-size': siteConfig.codeFontSize }),
   'ec-frm-frameBoxShdCssVal': 'none',
   'ec-frm-edTabBrdRad': '0',
   'ec-frm-edTabBarBrdCol':
