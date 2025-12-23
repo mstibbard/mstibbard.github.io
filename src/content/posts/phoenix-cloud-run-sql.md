@@ -1,7 +1,7 @@
 ---
 title: 'Deploy Phoenix to Google Cloud Run and Cloud SQL'
 description: 'Learn how to set up automated deployments and migrations for a Phoenix project onto Google Cloud Run and Cloud SQL.'
-published: 2024-01-26
+published: 2025-12-23
 draft: false
 tags: ['gcp', 'elixir']
 toc: true
@@ -46,7 +46,11 @@ if config_env() == :prod do
 -      environment variable DATABASE_URL is missing.
 -      For example: ecto://USER:PASS@HOST/DATABASE
 -      """
--
++  System.get_env("PGHOST") || raise "environment variable PGHOST is missing"
++  System.get_env("PGUSER") || raise "environment variable PGUSER is missing"
++  System.get_env("PGPASSWORD") || raise "environment variable PGPASSWORD is missing"
++  System.get_env("PGDATABASE") || raise "environment variable PGDATABASE is missing"
+
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :insight, Insight.Repo,
@@ -63,10 +67,14 @@ if config_env() == :prod do
 Cloud Run automatically generates a semi-randomised URL for your app (E.g., `https://[SERVICE NAME]-[RANDOM NUMBERS].a.run.app`). To prevent infinite reloading behaviour in LiveView we need to allow-list the Cloud Run origin.
 
 ```diff lang="elixir" title="config/prod.exs"
-config :insight, Insight.Endpoint,
+config :insight_app, InsightApp.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json",
 +  check_origin: ["https://*.run.app"]
 ```
+
+:::warning
+Once you are up and running with your domain make sure you unwind this as accepting a wildcard origin is insecure.
+:::
 
 ## Create a GCP project
 
@@ -77,8 +85,9 @@ Use environment variables so that most commands can be copy-pasted.
 Create environment variables for your application name and preferred [GCP region](https://cloud.google.com/compute/docs/regions-zones#available).
 
 ```sh
-APP_NAME=insight
-SERVICE_NAME=insight-dev
+APP_NAME=insight_app
+APP_NAME_CAPS=InsightApp
+SERVICE_NAME=insight-app # letters, numbers, hyphens. No underscores
 REGION=australia-southeast1
 
 echo $APP_NAME $SERVICE_NAME $REGION
@@ -139,7 +148,7 @@ gcloud services enable \
 Create a new repository with an identifier (I generally align this with my elixir app name) and specifying the format and region.
 
 ```sh
-gcloud artifacts repositories create $APP_NAME \
+gcloud artifacts repositories create $SERVICE_NAME \
   --repository-format=docker \
   --location=$REGION \
   --description="$APP_NAME application"
@@ -148,7 +157,7 @@ gcloud artifacts repositories create $APP_NAME \
 Create an environment variable to capture the repository's `Registry URL` with the following command:
 
 ```sh
-REGISTRY_URL=$(gcloud artifacts repositories describe $APP_NAME \
+REGISTRY_URL=$(gcloud artifacts repositories describe $SERVICE_NAME \
   --location $REGION)
 
 echo $REGISTRY_URL
@@ -188,17 +197,13 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 Set up the environment variables for the next handful of steps.
 
 ```sh
-INSTANCE=${APP_NAME}-sql
-DB_NAME=${APP_NAME}_dev
+INSTANCE=$SERVICE_NAME # letters, numbers, hyphens. No underscores
+DB_NAME=$APP_NAME
 DB_USER=${APP_NAME}_admin
 DB_PASS=pa55w0rd
 
 echo $INSTANCE $DB_NAME $DB_USER $DB_PASS
 ```
-
-:::important
-The instance name must be composed of lowercase letters, numbers, and hyphens; must start with a letter.
-:::
 
 Create a new PostgreSQL instance specifying your desired region, type of DB, and compute tier. This can take a few minutes to provision.
 
@@ -239,47 +244,51 @@ echo $CONN_NAME
 
 ## Create environment variables in Secrets Manager
 
-Create the following secrets on GCP that our Phoenix app will use:
-
-- `DEV_SECRET_KEY_BASE` (mapped to SECRET_KEY_BASE in deploy step)
-- `DB_USER` (mapped to PGUSER in deploy step)
-- `DB_PASS` (mapped to PGPASSWORD in deploy step)
-- `DB_HOST` (mapped to PGHOST in deploy step)
+Define secret names for easy management. E.g., based on environment.
 
 ```sh
-mix phx.gen.secret | gcloud secrets create DEV_SECRET_KEY_BASE --data-file=-
-echo /cloudsql/$CONN_NAME | gcloud secrets create DB_HOST --data-file=-
-echo $DB_USER | gcloud secrets create DB_USER --data-file=-
-echo $DB_PASS | gcloud secrets create DB_PASS --data-file=-
+SECRET_NAME_SECRET_KEY_BASE=DEV_SECRET_KEY_BASE
+SECRET_NAME_DB_HOST=DEV_PGHOST
+SECRET_NAME_DB_USER=DEV_PGUSER
+SECRET_NAME_DB_PASSWORD=DEV_PGPASSWORD
+```
+
+Create your application's secrets on GCP. These are mapped to environment variables in the deployment step later.
+
+```sh
+mix phx.gen.secret | gcloud secrets create $SECRET_NAME_SECRET_KEY_BASE --data-file=-
+echo /cloudsql/$CONN_NAME | gcloud secrets create $SECRET_NAME_DB_HOST --data-file=-
+echo $DB_USER | gcloud secrets create $SECRET_NAME_DB_USER --data-file=-
+echo $DB_PASS | gcloud secrets create $SECRET_NAME_DB_PASSWORD --data-file=-
 ```
 
 Add permissions to the Service Account so it can access the secrets.
 
 ```sh
-gcloud secrets add-iam-policy-binding DEV_SECRET_KEY_BASE \
+gcloud secrets add-iam-policy-binding $SECRET_NAME_SECRET_KEY_BASE \
   --member=serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com \
   --role="roles/secretmanager.secretAccessor"
 
-gcloud secrets add-iam-policy-binding DB_USER \
+gcloud secrets add-iam-policy-binding $SECRET_NAME_DB_HOST \
   --member=serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com \
   --role="roles/secretmanager.secretAccessor"
 
-gcloud secrets add-iam-policy-binding DB_PASS \
+gcloud secrets add-iam-policy-binding $SECRET_NAME_DB_USER \
   --member=serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com \
   --role="roles/secretmanager.secretAccessor"
 
-gcloud secrets add-iam-policy-binding DB_HOST \
+gcloud secrets add-iam-policy-binding $SECRET_NAME_DB_PASSWORD \
   --member=serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com \
   --role="roles/secretmanager.secretAccessor"
 ```
 
-Retrieve the paths for the `DB_USER` and `DB_PASS` for use later:
+Retrieve the paths for the database user and password for use later:
 
 ```sh
-DB_USER_PATH=$(gcloud secrets describe DB_USER --format='value(name)')
-DB_PASS_PATH=$(gcloud secrets describe DB_PASS --format='value(name)')
+SECRET_PATH_PGUSER=$(gcloud secrets describe $SECRET_NAME_DB_USER --format='value(name)')
+SECRET_PATH_PGPASSWORD=$(gcloud secrets describe $SECRET_NAME_DB_PASSWORD --format='value(name)')
 
-echo $DB_USER_PATH $DB_PASS_PATH
+echo $SECRET_PATH_PGUSER $SECRET_PATH_PGPASSWORD
 ```
 
 ## Connect a GitHub repository to Cloud Build
@@ -352,7 +361,7 @@ steps:
   - PGUSER
   - PGPASSWORD
   script: |
-    /app/bin/insight eval "Insight.Release.migrate"
+    /app/bin/$APP_NAME eval "$APP_NAME_CAPS.Release.migrate"
 
 - name: 'gcr.io/cloud-builders/gcloud'
   id: Deploy to Cloud Run
@@ -365,19 +374,19 @@ steps:
     '--region',
     '\${_REGION}',
     '--allow-unauthenticated',
-    '--set-secrets=SECRET_KEY_BASE=DEV_SECRET_KEY_BASE:latest',
-    '--set-secrets=PGHOST=DB_HOST:latest',
-    '--set-secrets=PGUSER=DB_USER:latest',
-    '--set-secrets=PGPASSWORD=DB_PASS:latest',
+    '--set-secrets=SECRET_KEY_BASE=$SECRET_NAME_SECRET_KEY_BASE:latest',
+    '--set-secrets=PGHOST=$SECRET_NAME_DB_HOST:latest',
+    '--set-secrets=PGUSER=$SECRET_NAME_DB_USER:latest',
+    '--set-secrets=PGPASSWORD=$SECRET_NAME_DB_PASSWORD:latest',
     '--set-env-vars=PGDATABASE=\${_DATABASE_NAME}',
     '--add-cloudsql-instances=\${_INSTANCE_CONNECTION_NAME}'
   ]
 
 availableSecrets:
   secretManager:
-  - versionName: $DB_USER_PATH/versions/latest
+  - versionName: $SECRET_PATH_PGUSER/versions/latest
     env: 'PGUSER'
-  - versionName: $DB_PASS_PATH/versions/latest
+  - versionName: $SECRET_PATH_PGPASSWORD/versions/latest
     env: 'PGPASSWORD'
 
 images:
@@ -389,10 +398,10 @@ options:
 
 substitutions:
   _DATABASE_NAME: $DB_NAME
-  _IMAGE_NAME: $REGISTRY_URL/app
+  _IMAGE_NAME: $REGISTRY_URL/$SERVICE_NAME
   _INSTANCE_CONNECTION_NAME: $CONN_NAME
   _REGION: $REGION
-  _SERVICE_NAME: insight-dev
+  _SERVICE_NAME: $SERVICE_NAME
 EOF
 ```
 
@@ -402,14 +411,13 @@ This script creates a `cloudbuild.yaml` [(docs)](https://cloud.google.com/build/
 - Starts a Cloud SQL Proxy within the Cloud Build environment
 - Waits to ensure the proxy is functional
 - Executes up migrations against the database
-  - Despite using `MIX_ENV=prod` we are still interacting with the database we created previously (`insight_dev`) via the `PGDATABASE` environment variable
   - The migrations are run using the scripts generated by `mix phx.gen.release --docker`
-  - Uses our image and the PostgreSQL environment variables (`PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`)
-- Deploys our Cloud Run service
-  - Uses our image
+  - Uses your image and the PostgreSQL environment variables (`PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`)
+- Deploys your Cloud Run service
+  - Uses your image
   - Maps the secrets and environment variables
-  - Assigns our service account as the owner
-  - Links our Cloud SQL instance
+  - Assigns your service account as the owner
+  - Links your Cloud SQL instance
 - Makes use of [substitute variables](https://cloud.google.com/build/docs/configuring-builds/substitute-variable-values) to make it easier to work with. Because we are using a mix of `script:` and `arg:` approaches we need to set the `automapSubstitutions: true` option otherwise our builds will fail
 
 ## Trigger a deploy to Cloud Run
