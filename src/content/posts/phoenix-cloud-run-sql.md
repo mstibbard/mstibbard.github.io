@@ -21,11 +21,11 @@ Follow along with a generated Phoenix app
 :::
 
 ```sh
-mix phx.new insight
-cd insight
+mix phx.new insight_app
+cd insight_app
 # create something for us to test DB interaction with e.g.,
 mix phx.gen.live Products Product products name brand
-# remember to update lib/insight_web/router.ex
+# remember to update lib/insight_app_web/router.ex
 ```
 
 ## Prepare your application
